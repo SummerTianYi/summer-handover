@@ -12,6 +12,10 @@ from __future__ import annotations
 import datetime
 import hashlib
 import sys
+
+if hasattr(sys.stdout, "reconfigure"):  # Chinese output on cp1252 consoles
+    sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+    sys.stderr.reconfigure(encoding="utf-8", errors="replace")
 from pathlib import Path
 
 LOCK_HEADER = "# frozen files - hash over CRLF-normalized content; edit only via scripts/freeze.py after a handoff-card declaration\n"

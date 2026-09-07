@@ -32,6 +32,10 @@ import sys
 import unittest
 from pathlib import Path
 
+if hasattr(sys.stdout, "reconfigure"):  # Chinese output on cp1252 consoles
+    sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+    sys.stderr.reconfigure(encoding="utf-8", errors="replace")
+
 _BACKSLASH = chr(92) * 2  # regex needs a doubled backslash to match one literal
 DAY0_MARKER = "TODO-DAY0"
 
