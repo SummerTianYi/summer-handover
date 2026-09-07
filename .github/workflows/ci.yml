@@ -35,6 +35,10 @@ jobs:
       - name: Guard self-test (from templates, in a throwaway dir)
         shell: bash
         run: |
-          mkdir -p /tmp/hov-test && cd /tmp/hov-test
-          python -c "import shutil; shutil.copytree('$GITHUB_WORKSPACE/skills/zero-context-handover/templates', '.', dirs_exist_ok=True)"
-          python check_handover.py --selftest
+          mkdir -p "$RUNNER_TEMP/hov-test" && cd "$RUNNER_TEMP/hov-test"
+          python - << 'EOF'
+          import os, shutil, subprocess, sys
+          ws = os.environ["GITHUB_WORKSPACE"]  # read inside python: no backslash escaping
+          shutil.copytree(os.path.join(ws, "skills", "zero-context-handover", "templates"), ".", dirs_exist_ok=True)
+          sys.exit(subprocess.run([sys.executable, "check_handover.py", "--selftest"]).returncode)
+          EOF

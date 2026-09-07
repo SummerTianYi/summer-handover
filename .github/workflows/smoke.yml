@@ -21,9 +21,9 @@ jobs:
       - name: Install -> bootstrap -> guard -> freeze cycle
         shell: bash
         run: |
-          python scripts/install.py --dir /tmp/agent-skills
-          mkdir -p /tmp/contest && cd /tmp/contest && git init -q
-          python /tmp/agent-skills/zero-context-handover/scripts/bootstrap.py --preset sprint --owners alice,brin
+          python scripts/install.py --dir agent-skills
+          mkdir -p contest && cd contest && git init -q
+          python ../agent-skills/zero-context-handover/scripts/bootstrap.py --preset sprint --owners alice,brin
           python check_handover.py && echo "UNEXPECTED GREEN (Day-0 markers should be red)" && exit 1 || echo "Day-0 red as designed"
           python - << 'EOF'
           from pathlib import Path
