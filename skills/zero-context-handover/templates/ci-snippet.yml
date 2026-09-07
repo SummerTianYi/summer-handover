@@ -38,9 +38,13 @@ jobs:
         if: runner.os == 'Linux'
         shell: bash
         run: |
-          if git diff --name-only HEAD^ HEAD | grep -q "FROZEN"; then
-            echo "::warning::FROZEN registry changed in this commit - verify a handoff-card declaration (CARDS/*.md) covers it. Audit trail: FROZEN.history.log"
-            tail -n +2 FROZEN.history.log 2>/dev/null | tail -3 || true
+          if git rev-parse --verify HEAD^ >/dev/null 2>&1; then
+            if git diff --name-only HEAD^ HEAD | grep -q "FROZEN"; then
+              echo "::warning::FROZEN registry changed in this commit - verify a handoff-card declaration (CARDS/*.md) covers it. Audit trail: FROZEN.history.log"
+              tail -n +2 FROZEN.history.log 2>/dev/null | tail -3 || true
+            fi
+          else
+            echo "first commit on this branch - freeze-registry check skipped"
           fi
       # optional: project tests (uncomment and adjust once the project has them)
       # - run: python -m unittest discover -s tests -v
