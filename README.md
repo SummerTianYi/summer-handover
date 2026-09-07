@@ -27,6 +27,19 @@ python /path/to/summer-handover/scripts/bootstrap.py --preset sprint --owners al
 
 把 `skills/zero-context-handover/` 装进你的 agent skill 目录（如 `~/.agents/skills/`），agent 收到"给这个仓库装交接系统"类指令时自动按 SKILL.md 执行；或手动跑 bootstrap。
 
+## 安装与运行逻辑（一句话装好）
+
+```bash
+git clone https://github.com/SummerTianYi/summer-handover
+python summer-handover/scripts/install.py   # 装进本机所有 agent 的技能目录
+```
+
+之后对本机任何 agent 说一句"**给这个仓库装零上下文交接系统**"即可；没有 skill 发现机制的 agent 直接读 `SKILL.md` 照做，效果相同。
+
+**运行逻辑（重要）**：本系统**不是常驻监视器**，没有任何后台进程。它是"三个时刻的工具 + 一个永不下班的哨兵"——装配（bootstrap，一次）、体检（`python check_handover.py`，提交前后随手跑）、门禁（交接/接管时跑考卷）；而"一直在检查"的角色由 **GitHub Actions** 承担：每次 push 自动三平台矩阵跑守卫，红灯绿灯人人可见。仓库状态三层查看：本地 `python check_handover.py`、远端 CI 页、系统健康 `--selftest`。
+
+**队友零配置**：系统全部实体（守卫/冻结器/模板）bootstrap 时已复制进项目仓库——队友 clone 项目、跑 setup、提交前跑一条守卫命令即可，不需要装本 skill，甚至不需要用 agent。
+
 ## 实战出身
 
 - 验证场：洛天依桌面 agent 项目（Godot 角色三任 agent 接力 + 103 工具联网能力），白纸门禁三轮各抓出 4/3/8 处文档腐化并当场修复；
