@@ -27,6 +27,10 @@ python /path/to/summer-handover/scripts/bootstrap.py --preset sprint --owners al
 
 把 `skills/zero-context-handover/` 装进你的 agent skill 目录（如 `~/.agents/skills/`），agent 收到"给这个仓库装交接系统"类指令时自动按 SKILL.md 执行；或手动跑 bootstrap。
 
+## 比赛/团队现场 Prompt（复制粘贴即用）
+
+三段现成 prompt（Day-0 装配 / 队友首次 clone / 每日开工）见 [`skills/zero-context-handover/templates/PROMPTS.md`](skills/zero-context-handover/templates/PROMPTS.md)——队员不需要知道 summer-handover 的存在，系统装配后完全活在比赛仓库里。
+
 ## 安装与运行逻辑（一句话装好）
 
 ```bash
