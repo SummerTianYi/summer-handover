@@ -36,6 +36,7 @@ jobs:
           print("Day-0 filled")
           EOF
           python check_handover.py
+          mkdir -p src/brin
           echo "v1" > src/brin/result.csv
           python scripts/freeze.py src/brin/result.csv "v1"
           echo "v2" > src/brin/result.csv
