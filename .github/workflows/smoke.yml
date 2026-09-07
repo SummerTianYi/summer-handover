@@ -1,0 +1,44 @@
+name: Install Smoke
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  smoke:
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.x"
+      # simulate a teammate's machine: install the skill, then bootstrap a
+      # throwaway repo FROM THE INSTALLED COPY, fill Day-0, freeze, guard
+      - name: Install -> bootstrap -> guard -> freeze cycle
+        shell: bash
+        run: |
+          python scripts/install.py --dir /tmp/agent-skills
+          mkdir -p /tmp/contest && cd /tmp/contest && git init -q
+          python /tmp/agent-skills/zero-context-handover/scripts/bootstrap.py --preset sprint --owners alice,brin
+          python check_handover.py && echo "UNEXPECTED GREEN (Day-0 markers should be red)" && exit 1 || echo "Day-0 red as designed"
+          python - << 'EOF'
+          from pathlib import Path
+          for rel in ("AGENTS.md", "HANDOFF.md"):
+              p = Path(rel)
+              p.write_text(p.read_text(encoding="utf-8").replace("TODO-DAY0: 填写后删除本行\n", "").replace("TODO-DAY0: 逐条确认后删除本行\n", "").replace("TODO-DAY0: 每行 owner 认领后删除本行\n", ""), encoding="utf-8")
+          for owner in ("alice", "brin"):
+              p = Path(f"CARDS/{owner}.md")
+              p.write_text(p.read_text(encoding="utf-8").replace("TODO-DAY0: Day 0 填写本卡\n", ""), encoding="utf-8")
+          print("Day-0 filled")
+          EOF
+          python check_handover.py
+          echo "v1" > src/brin/result.csv
+          python scripts/freeze.py src/brin/result.csv "v1"
+          echo "v2" > src/brin/result.csv
+          python check_handover.py && echo "UNEXPECTED GREEN (frozen file modified)" && exit 1 || echo "freeze protection red as designed"
+          python scripts/freeze.py src/brin/result.csv "v2 re-declared"
+          python check_handover.py
