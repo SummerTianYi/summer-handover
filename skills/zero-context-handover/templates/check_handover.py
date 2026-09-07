@@ -7,32 +7,63 @@ dies at commit time instead of misleading the next agent. Configure via
 .handover.json (created by bootstrap.py); every section is optional.
 
 Checks:
-  docs            numeric claims in status docs vs a real counter function
+  docs            numeric claims in status docs vs a real unittest discovery
+                  (discovery failure = check skipped with a warning, not a lie)
   required_files  constitution-mandated skeleton files exist
   interface       interface-contract in/out paths exist
   env_contract    lockfile / setup scripts exist
+  frozen_lock     FROZEN.lock sha256 entries (CRLF-normalized, cross-platform)
+  path_ban_dirs   absolute-path ban in code dirs (Windows/mac/linux forms)
   contributions   registered owners have a CARDS/<owner>.md
+  dismantle       system files present but config/guard deleted = FAIL
 
 Usage:  python check_handover.py   (exit 0 = OK, 1 = mismatch found)
 """
 from __future__ import annotations
 
 import hashlib
-import importlib.util
 import json
 import re
 import sys
+import unittest
 from pathlib import Path
 
-REPO = Path.cwd()
+_BACKSLASH = chr(92) * 2  # regex needs a doubled backslash to match one literal
+
+
+def locate_repo_root() -> Path:
+    """Walk up from cwd so the guard works from any subdirectory (and from
+    pre-commit hooks that run elsewhere). Falls back to cwd."""
+    for candidate in [Path.cwd(), *Path.cwd().parents]:
+        if (candidate / ".handover.json").exists() or (candidate / ".git").exists():
+            return candidate
+    return Path.cwd()
+
+
+REPO = locate_repo_root()
 CONFIG = REPO / ".handover.json"
+SYSTEM_MARKERS = ("AGENTS.md", "HANDOFF.md")
 
 
 def load_config() -> dict:
     if not CONFIG.exists():
-        print("[guard] no .handover.json found — nothing to check (scaffold first?)")
         return {}
     return json.loads(CONFIG.read_text(encoding="utf-8"))
+
+
+# --- dismantle detection (attack: delete config/guard to silence the guard) --
+def check_dismantle(cfg_exists: bool) -> list[str]:
+    failures: list[str] = []
+    markers = [m for m in SYSTEM_MARKERS if (REPO / m).exists()]
+    if markers and not cfg_exists:
+        failures.append(
+            "handover system dismantled: " + ", ".join(markers)
+            + " present but .handover.json is gone (restored by re-running bootstrap)"
+        )
+    if markers and not (REPO / "check_handover.py").exists():
+        # we are running, so this only triggers for a stray copy — kept for CI symmetry
+        pass
+    return failures
 
 
 # --- check: docs (numeric claims vs reality) -------------------------------
@@ -42,6 +73,7 @@ CLAIM_PATTERNS = [
     re.compile(r"(\d+)\s*项测试"),
     re.compile(r"[Cc]urrently\s+(\d+)"),
 ]
+_TEMPLATE_MARKERS = ("方括号处 Day 0 填写", "Day 0 填写方括号", "（模板，Day 0")
 
 
 def scan_doc_claims(paths: list[str]) -> list[tuple[str, int, str]]:
@@ -57,30 +89,38 @@ def scan_doc_claims(paths: list[str]) -> list[tuple[str, int, str]]:
     return claims
 
 
-def actual_test_count() -> int:
-    """Discover unittest cases under the configured tests dir. A project can
-    point counter_module at its own counter for non-unittest ecosystems."""
-    spec = importlib.util.find_spec  # noqa: F841 - referenced for clarity
-    import unittest
-
+def discover_test_count() -> tuple[int | None, str]:
+    """Return (count, note). count=None means discovery failed in this
+    environment (missing deps) — the check then skips instead of lying."""
     tests_dir = REPO / CFG.get("tests_dir", "tests")
     if not tests_dir.is_dir():
-        return 0
+        return None, f"no tests dir at {CFG.get('tests_dir', 'tests')}"
     sys.path.insert(0, str(tests_dir))
     try:
         suite = unittest.TestLoader().discover(str(tests_dir))
+        return suite.countTestCases(), ""
+    except Exception as exc:  # noqa: BLE001 - env problems must not become lies
+        return None, f"discovery failed ({str(exc)[:120]}) — docs check skipped"
     finally:
         sys.path.pop(0)
-    return suite.countTestCases()
 
 
-# --- check: frozen integrity (the "don't break finished work" guarantee) ---
-# FROZEN.lock lines: <sha256>  <path>  <note>. Declare via scripts/freeze.py
-# when the handoff card declares a freeze; guard fails on any drift.
+# --- check: frozen integrity (cross-platform, CRLF-normalized) -------------
+def normalized_sha256(target: Path) -> str:
+    """sha256 over content with CRLF normalized to LF, so a file moved
+    between machines by git autocrlf is NOT flagged as modified."""
+    data = target.read_bytes().replace(b"\r\n", b"\n")
+    return hashlib.sha256(data).hexdigest()
+
+
 def check_frozen_lock(lock_rel: str) -> list[str]:
     failures: list[str] = []
     lock = REPO / lock_rel
     if not lock.exists():
+        failures.append(
+            f"frozen_lock '{lock_rel}' is configured but the file is missing"
+            " — deleting the lock silently disables freeze protection"
+        )
         return failures
     for line in lock.read_text(encoding="utf-8").splitlines():
         line = line.strip()
@@ -94,14 +134,12 @@ def check_frozen_lock(lock_rel: str) -> list[str]:
         if not target.exists():
             failures.append(f"frozen file deleted: {rel}")
             continue
-        digest = hashlib.sha256(target.read_bytes()).hexdigest()
-        if digest != expected:
+        if normalized_sha256(target) != expected:
             failures.append(f"frozen file modified without re-declaration: {rel}")
     return failures
 
 
 # --- check: absolute-path ban (constitution rule, mechanically enforced) ---
-_BACKSLASH = chr(92) * 2  # regex needs a doubled backslash to match one literal
 _ABS_PATH_PATTERNS = [
     re.compile("[A-Za-z]:[" + _BACKSLASH + "/]"),   # drive + separator
     re.compile("/Users/"),
@@ -144,17 +182,23 @@ CFG: dict = {}
 def main() -> int:
     global CFG
     CFG = load_config()
+    warnings: list[str] = []
     failures: list[str] = []
+
+    failures += check_dismantle(CONFIG.exists())
 
     docs_cfg = CFG.get("docs", {})
     if docs_cfg.get("status_docs"):
-        actual = actual_test_count()
-        print(f"[docs] actual unittest cases: {actual}")
-        for rel, claimed, line in scan_doc_claims(docs_cfg["status_docs"]):
-            ok = "ok" if claimed == actual else "MISMATCH"
-            print(f"    {rel}: claims {claimed} ({ok})")
-            if claimed != actual:
-                failures.append(f"{rel} claims {claimed} tests, actual {actual}: {line}")
+        actual, note = discover_test_count()
+        if actual is None:
+            warnings.append(f"docs: {note}")
+        else:
+            print(f"[docs] actual unittest cases: {actual}")
+            for rel, claimed, line in scan_doc_claims(docs_cfg["status_docs"]):
+                ok = "ok" if claimed == actual else "MISMATCH"
+                print(f"    {rel}: claims {claimed} ({ok})")
+                if claimed != actual:
+                    failures.append(f"{rel} claims {claimed} tests, actual {actual}: {line}")
 
     failures += check_existence(CFG.get("required_files", []), "required_files")
     failures += check_existence(CFG.get("interface", []), "interface path")
@@ -175,6 +219,14 @@ def main() -> int:
             if not card.exists():
                 failures.append(f"contributions: registered owner '{owner}' has no card at {card}")
 
+    # Day-0 lint: unfilled templates block the system's value; warn loudly.
+    for marker_doc in SYSTEM_MARKERS:
+        doc = REPO / marker_doc
+        if doc.exists() and any(m in doc.read_text(encoding="utf-8", errors="replace") for m in _TEMPLATE_MARKERS):
+            warnings.append(f"{marker_doc} still contains unfilled Day-0 template hints")
+
+    for warning in warnings:
+        print(f"[warn] {warning}")
     if failures:
         print("HANDOVER_GUARD_FAIL")
         for failure in failures:

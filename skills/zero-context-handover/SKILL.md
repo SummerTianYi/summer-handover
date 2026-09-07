@@ -78,6 +78,10 @@ description: Install and operate a zero-context handover system for any reposito
 - "在我机器上能跑"的解药只有 CI 矩阵 + 环境契约，没有第二个；
 - 一次性授权/一次性标记这类状态，必须绑定到具体对象（工具名/文件名），会话级作用域必然泄漏；
 - 测试依赖（numpy 等）在 CI 没装就裸 import——守卫之外，写测试时永远想"CI 环境有什么"；
+- **CRLF 是三机场景的头号误报源**：git autocrlf 在 win/mac 间交换文件会改行尾，裸 sha256 冻结锁会在没人动代码时全线报警（然后被用户禁用）。冻结哈希必须对 CRLF 归一化后的内容计算；
+- **守卫本身可以被拆除**：删掉 .handover.json 或 check_handover.py，守卫就"无事可查"地变绿。解药：守卫端做拆除检测（宪法在而配置亡=FAIL），CI 端做系统文件完整性断言；
+- **审计链防偷梁换柱**：只存当前哈希，偷偷 re-freeze 即可抹掉篡改痕迹。冻结记录必须追加式（FROZEN.history.log），抹得掉当前值，抹不掉历史；
+- **考卷必须活在目标仓库里**：白纸读者是零上下文的，它看不见你装 skill 的地方。十题考卷由 bootstrap 装配进 docs/TAKEOVER_EXAM.md；
 - **转义战争**：agent 用 shell heredoc/嵌套字符串生成含反斜杠的文件（正则、Windows 路径）时，转义层会静默改写字节（实战中一个守卫正则被写坏四次才修对）。规矩：复杂字节的文件一律用 agent 的文件写入工具整文件生成，正则里的反斜杠用 chr(92) 构造；
 - 白纸读者抓到的问题**当场修**，并记入交接记录——三轮各抓 4/3/8 处，这个机制的钱没白花。
 

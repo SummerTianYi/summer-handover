@@ -82,6 +82,15 @@ def main() -> int:
 
     # freeze helper lives IN the target repo (FROZEN.lock header names it)
     place(repo / "scripts" / "freeze.py", Path(__file__).resolve().parent / "freeze.py")
+    # the takeover exam lives IN the target repo (a zero-context reader can
+    # only see the repo, never the skill installation)
+    place(repo / "docs" / "TAKEOVER_EXAM.md", TEMPLATES / "TAKEOVER_EXAM.md")
+    # lock file ships from day one so "config declares frozen_lock" is honest
+    place(
+        repo / "FROZEN.lock",
+        None,
+        "# frozen files - hash over CRLF-normalized content; edit only via scripts/freeze.py after a handoff-card declaration\n",
+    )
 
     # environment contract scaffolds (owner fills real deps on Day 0)
     owners = [o.strip() for o in args.owners.split(",") if o.strip()]

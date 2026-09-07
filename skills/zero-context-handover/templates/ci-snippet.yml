@@ -16,5 +16,17 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.x"
+      # system integrity: a pushed commit that removes the handover system
+      # (config/guard/lock) while the constitution docs remain must fail CI
+      - name: System integrity
+        shell: bash
+        run: |
+          test -f AGENTS.md
+          test -f HANDOFF.md
+          test -f .handover.json
+          test -f check_handover.py
+          test -f scripts/freeze.py
       - name: Handover consistency guard
         run: python check_handover.py
+      # optional: project tests (uncomment and adjust once the project has them)
+      # - run: python -m unittest discover -s tests -v
