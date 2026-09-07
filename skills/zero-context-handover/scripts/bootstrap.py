@@ -17,8 +17,9 @@ import json
 import shutil
 from pathlib import Path
 
-SKILL = Path(__file__).resolve().parents[1] / "skills" / "zero-context-handover"
-TEMPLATES = SKILL / "templates"
+# resolve relative to THIS file, so it works both from the skill install
+# and from a repo checkout (walkthrough-found bug: layouts disagreed)
+TEMPLATES = Path(__file__).resolve().parents[1] / "templates"
 
 PRESETS = {
     "sprint": {"docs": False},
