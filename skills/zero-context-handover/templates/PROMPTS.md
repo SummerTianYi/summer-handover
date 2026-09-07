@@ -7,7 +7,7 @@
 ```text
 我们是三人数学建模比赛队（alice 建模 / brin 求解 / cary 论文），比赛仓库是 [仓库地址]。
 请按顺序执行：
-1. 克隆 https://github.com/SummerTianYi/summer-handover 到任意临时目录（仅本次装配用）。
+1. 克隆 https://github.com/SummerTianYi/zero-context-handover 到任意临时目录（仅本次装配用）。
 2. 在我们的比赛仓库根目录执行：
    python <临时目录>/skills/zero-context-handover/scripts/bootstrap.py --preset sprint --owners alice,brin,cary
 3. 按打印出的 Day-0 清单逐项填写：AGENTS.md（项目一句话+接口契约）、HANDOFF.md（北极星+领地表）、
@@ -42,5 +42,5 @@
 
 ## 备注
 
-- 队友**不需要**接触 summer-handover 仓库，也**不需要**安装任何 skill——系统实体在比赛仓库里，clone 即得。
+- 队友**不需要**接触 zero-context-handover 仓库，也**不需要**安装任何 skill——系统实体在比赛仓库里，clone 即得。
 - 换人/交接时：新 agent 先跑 B 中第 1-3 步（三问快卷），全对再动手；完整十题考卷在 `docs/TAKEOVER_EXAM.md`（full 档用）。

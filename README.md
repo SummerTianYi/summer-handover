@@ -17,7 +17,7 @@
 
 ```bash
 # 在你的项目仓库根目录
-python /path/to/summer-handover/scripts/bootstrap.py --preset sprint --owners alice,bob,cary
+python /path/to/zero-context-handover/scripts/bootstrap.py --preset sprint --owners alice,bob,cary
 # 然后按打印出的 Day-0 清单填写，30 分钟立约仪式，买整个项目的秩序
 ```
 
@@ -29,13 +29,13 @@ python /path/to/summer-handover/scripts/bootstrap.py --preset sprint --owners al
 
 ## 比赛/团队现场 Prompt（复制粘贴即用）
 
-三段现成 prompt（Day-0 装配 / 队友首次 clone / 每日开工）见 [`skills/zero-context-handover/templates/PROMPTS.md`](skills/zero-context-handover/templates/PROMPTS.md)——队员不需要知道 summer-handover 的存在，系统装配后完全活在比赛仓库里。
+三段现成 prompt（Day-0 装配 / 队友首次 clone / 每日开工）见 [`skills/zero-context-handover/templates/PROMPTS.md`](skills/zero-context-handover/templates/PROMPTS.md)——队员不需要知道 zero-context-handover 的存在，系统装配后完全活在比赛仓库里。
 
 ## 安装与运行逻辑（一句话装好）
 
 ```bash
-git clone https://github.com/SummerTianYi/summer-handover
-python summer-handover/scripts/install.py   # 装进本机所有 agent 的技能目录
+git clone https://github.com/SummerTianYi/zero-context-handover
+python zero-context-handover/scripts/install.py   # 装进本机所有 agent 的技能目录
 ```
 
 之后对本机任何 agent 说一句"**给这个仓库装零上下文交接系统**"即可；没有 skill 发现机制的 agent 直接读 `SKILL.md` 照做，效果相同。
