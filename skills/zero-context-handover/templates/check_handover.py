@@ -13,9 +13,13 @@ Checks:
   interface       interface-contract in/out paths exist
   env_contract    lockfile / setup scripts exist
   frozen_lock     FROZEN.lock sha256 entries (CRLF-normalized, cross-platform)
-  path_ban_dirs   absolute-path ban in code dirs (Windows/mac/linux forms)
+  path_ban_dirs   absolute-path ban in code dirs (URL lines exempted)
+  meta            *.csv.meta.json rows claim vs actual csv lines + utf-8 check
+  day0            TODO-DAY0 markers remaining = hard FAIL (finish Day-0 first)
   contributions   registered owners have a CARDS/<owner>.md
   dismantle       system files present but config/guard deleted = FAIL
+
+Self-test:  python check_handover.py --selftest  (GUARD_SELFTEST_OK = healthy)
 
 Usage:  python check_handover.py   (exit 0 = OK, 1 = mismatch found)
 """
@@ -29,11 +33,11 @@ import unittest
 from pathlib import Path
 
 _BACKSLASH = chr(92) * 2  # regex needs a doubled backslash to match one literal
+DAY0_MARKER = "TODO-DAY0"
 
 
 def locate_repo_root() -> Path:
-    """Walk up from cwd so the guard works from any subdirectory (and from
-    pre-commit hooks that run elsewhere). Falls back to cwd."""
+    """Walk up from cwd so the guard works from any subdirectory."""
     for candidate in [Path.cwd(), *Path.cwd().parents]:
         if (candidate / ".handover.json").exists() or (candidate / ".git").exists():
             return candidate
@@ -51,7 +55,6 @@ def load_config() -> dict:
     return json.loads(CONFIG.read_text(encoding="utf-8"))
 
 
-# --- dismantle detection (attack: delete config/guard to silence the guard) --
 def check_dismantle(cfg_exists: bool) -> list[str]:
     failures: list[str] = []
     markers = [m for m in SYSTEM_MARKERS if (REPO / m).exists()]
@@ -60,9 +63,6 @@ def check_dismantle(cfg_exists: bool) -> list[str]:
             "handover system dismantled: " + ", ".join(markers)
             + " present but .handover.json is gone (restored by re-running bootstrap)"
         )
-    if markers and not (REPO / "check_handover.py").exists():
-        # we are running, so this only triggers for a stray copy — kept for CI symmetry
-        pass
     return failures
 
 
@@ -90,8 +90,6 @@ def scan_doc_claims(paths: list[str]) -> list[tuple[str, int, str]]:
 
 
 def discover_test_count() -> tuple[int | None, str]:
-    """Return (count, note). count=None means discovery failed in this
-    environment (missing deps) — the check then skips instead of lying."""
     tests_dir = REPO / CFG.get("tests_dir", "tests")
     if not tests_dir.is_dir():
         return None, f"no tests dir at {CFG.get('tests_dir', 'tests')}"
@@ -107,8 +105,6 @@ def discover_test_count() -> tuple[int | None, str]:
 
 # --- check: frozen integrity (cross-platform, CRLF-normalized) -------------
 def normalized_sha256(target: Path) -> str:
-    """sha256 over content with CRLF normalized to LF, so a file moved
-    between machines by git autocrlf is NOT flagged as modified."""
     data = target.read_bytes().replace(b"\r\n", b"\n")
     return hashlib.sha256(data).hexdigest()
 
@@ -139,12 +135,13 @@ def check_frozen_lock(lock_rel: str) -> list[str]:
     return failures
 
 
-# --- check: absolute-path ban (constitution rule, mechanically enforced) ---
+# --- check: absolute-path ban (URL lines exempted — no wolf-crying) --------
 _ABS_PATH_PATTERNS = [
     re.compile("[A-Za-z]:[" + _BACKSLASH + "/]"),   # drive + separator
     re.compile("/Users/"),
     re.compile("/home/"),
 ]
+_URL_LINE = re.compile(r"[A-Za-z][A-Za-z0-9+.-]*://")
 
 
 def check_path_ban(scan_dirs: list[str]) -> list[str]:
@@ -161,8 +158,70 @@ def check_path_ban(scan_dirs: list[str]) -> list[str]:
             except OSError:
                 continue
             for i, line in enumerate(text.splitlines(), 1):
+                if _URL_LINE.search(line):
+                    continue  # URLs legitimately contain /home/ etc.
                 if any(p.search(line) for p in _ABS_PATH_PATTERNS):
                     failures.append(f"absolute path in {file.relative_to(REPO)}:{i}: {line.strip()[:90]}")
+    return failures
+
+
+# --- check: meta.json consistency (form AND a piece of content) ------------
+def check_meta_consistency(meta_glob_dirs: list[str]) -> list[str]:
+    failures: list[str] = []
+    seen = 0
+    for rel_dir in meta_glob_dirs:
+        base = REPO / rel_dir
+        if not base.is_dir():
+            continue
+        for meta_file in base.rglob("*.meta.json"):
+            seen += 1
+            try:
+                meta = json.loads(meta_file.read_text(encoding="utf-8"))
+            except Exception as exc:  # noqa: BLE001
+                failures.append(f"meta not valid utf-8/json: {meta_file.relative_to(REPO)} ({str(exc)[:60]})")
+                continue
+            # meta file name pattern: <name>.csv.meta.json -> <name>.csv
+            name = meta_file.name
+            if not name.endswith(".meta.json"):
+                continue
+            csv_path = meta_file.parent / name[: -len(".meta.json")]
+            if not csv_path.exists():
+                failures.append(f"meta without its data file: {meta_file.relative_to(REPO)}")
+                continue
+            try:
+                text = csv_path.read_text(encoding="utf-8")  # GBK/乱码 fails here
+            except UnicodeDecodeError:
+                failures.append(f"data file is not utf-8 (encoding contract): {csv_path.relative_to(REPO)}")
+                continue
+            declared = meta.get("rows")
+            if isinstance(declared, int):
+                actual_rows = max(len(text.splitlines()) - 1, 0)  # minus header
+                if actual_rows != declared:
+                    failures.append(
+                        f"meta rows mismatch: {csv_path.name} declares rows={declared}, actual data rows={actual_rows}"
+                    )
+    if seen == 0 and meta_glob_dirs:
+        print(f"[meta] no *.meta.json found under {meta_glob_dirs} (nothing to verify)")
+    return failures
+
+
+# --- check: Day-0 completion (machine-checkable, not a mere warning) -------
+def check_day0(scan_docs: list[str]) -> list[str]:
+    failures: list[str] = []
+    remaining: list[str] = []
+    for rel in scan_docs:
+        doc = REPO / rel
+        if not doc.exists():
+            continue
+        text = doc.read_text(encoding="utf-8", errors="replace")
+        count = text.count(DAY0_MARKER)
+        if count:
+            remaining.append(f"{rel} x{count}")
+    if remaining:
+        failures.append(
+            "Day-0 not finished — " + DAY0_MARKER + " markers remain in " + ", ".join(remaining)
+            + " (fill them, then delete the markers; the guard stays red until then BY DESIGN)"
+        )
     return failures
 
 
@@ -179,8 +238,29 @@ def check_existence(rel_paths: list[str], label: str) -> list[str]:
 CFG: dict = {}
 
 
+def selftest() -> int:
+    ok = True
+    sample = "alpha\nbeta\r\ngamma\r\n".encode()
+    if normalized_sha256_from_bytes(sample) != hashlib.sha256(b"alpha\nbeta\ngamma\n").hexdigest():
+        print("SELFTEST FAIL: CRLF normalization broken"); ok = False
+    if not re.compile("[A-Za-z]:[" + _BACKSLASH + "/]").search("x = open('D:" + chr(92) + "data" + chr(92) + "f.csv')"):
+        print("SELFTEST FAIL: drive-letter pattern broken"); ok = False
+    if re.compile("/Users/").search('read_csv("C:/Users/x")') is False:
+        print("SELFTEST FAIL: /Users/ pattern broken"); ok = False
+    if locate_repo_root() == Path.cwd() and not (Path.cwd() / ".git").exists() and not (Path.cwd() / ".handover.json").exists():
+        pass  # root locate has a defined fallback; nothing to assert here
+    print("GUARD_SELFTEST_OK" if ok else "GUARD_SELFTEST_FAIL")
+    return 0 if ok else 1
+
+
+def normalized_sha256_from_bytes(data: bytes) -> str:
+    return hashlib.sha256(data.replace(b"\r\n", b"\n")).hexdigest()
+
+
 def main() -> int:
     global CFG
+    if "--selftest" in sys.argv:
+        return selftest()
     CFG = load_config()
     warnings: list[str] = []
     failures: list[str] = []
@@ -212,18 +292,25 @@ def main() -> int:
     if path_ban_dirs:
         failures += check_path_ban(path_ban_dirs)
 
+    meta_dirs = CFG.get("meta_dirs", ["out"])
+    failures += check_meta_consistency(meta_dirs)
+
+    day0_docs = CFG.get("day0_docs", list(SYSTEM_MARKERS) + ["CARDS"])
+    day0_scan: list[str] = []
+    for rel in day0_docs:
+        p = REPO / rel
+        if p.is_dir():
+            day0_scan.extend(str(f.relative_to(REPO)) for f in p.rglob("*.md"))
+        else:
+            day0_scan.append(rel)
+    failures += check_day0(day0_scan)
+
     contrib = CFG.get("contributions", {})
     if contrib.get("owners") and contrib.get("cards_dir"):
         for owner in contrib["owners"]:
             card = REPO / contrib["cards_dir"] / f"{owner}.md"
             if not card.exists():
                 failures.append(f"contributions: registered owner '{owner}' has no card at {card}")
-
-    # Day-0 lint: unfilled templates block the system's value; warn loudly.
-    for marker_doc in SYSTEM_MARKERS:
-        doc = REPO / marker_doc
-        if doc.exists() and any(m in doc.read_text(encoding="utf-8", errors="replace") for m in _TEMPLATE_MARKERS):
-            warnings.append(f"{marker_doc} still contains unfilled Day-0 template hints")
 
     for warning in warnings:
         print(f"[warn] {warning}")

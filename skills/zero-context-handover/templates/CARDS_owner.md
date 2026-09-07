@@ -1,3 +1,4 @@
+TODO-DAY0: Day 0 填写本卡
 # <Owner> 交接卡（模板；每人一份，文件名 = owner 名，如 CARDS/alex.md）
 
 > 这是别人接管你工作时的唯一入口。每次 push 前更新。写不清楚 = 没做完。

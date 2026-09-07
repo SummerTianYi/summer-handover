@@ -13,10 +13,12 @@ jobs:
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 2   # freeze-registry change detection needs HEAD^
       - uses: actions/setup-python@v5
         with:
           python-version: "3.x"
-      # system integrity: a pushed commit that removes the handover system
+      # system integrity: a commit that removes the handover system
       # (config/guard/lock) while the constitution docs remain must fail CI
       - name: System integrity
         shell: bash
@@ -28,5 +30,17 @@ jobs:
           test -f scripts/freeze.py
       - name: Handover consistency guard
         run: python check_handover.py
+      - name: Guard self-test
+        run: python check_handover.py --selftest
+      # automatic eyes on the freeze registry: any commit touching FROZEN.*
+      # raises a visible CI annotation, so a sneaky re-freeze is never silent
+      - name: Freeze registry change annotation
+        if: runner.os == 'Linux'
+        shell: bash
+        run: |
+          if git diff --name-only HEAD^ HEAD | grep -q "FROZEN"; then
+            echo "::warning::FROZEN registry changed in this commit - verify a handoff-card declaration (CARDS/*.md) covers it. Audit trail: FROZEN.history.log"
+            tail -n +2 FROZEN.history.log 2>/dev/null | tail -3 || true
+          fi
       # optional: project tests (uncomment and adjust once the project has them)
       # - run: python -m unittest discover -s tests -v
