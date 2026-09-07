@@ -49,7 +49,7 @@ def main() -> int:
     print("\nverify: the folder contains SKILL.md + templates/ ;")
     print("your agent now understands: \"给这个仓库装零上下文交接系统\" / \"set up handover for this repo\"")
     print("(agents without skill discovery can simply read SKILL.md and follow it)")
-        print("assemble into a repo: python <skill_dir>/scripts/bootstrap.py --preset sprint --owners a,b,c")
+    print("assemble into a repo: python <skill_dir>/scripts/bootstrap.py --preset sprint --owners a,b,c")
     return 0
 
 

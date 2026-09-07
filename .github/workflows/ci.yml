@@ -1,0 +1,40 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  syntax:
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.x"
+      - name: Syntax check all python scripts
+        shell: bash
+        run: |
+          python - << 'EOF'
+          import ast, sys
+          from pathlib import Path
+          bad = []
+          for f in Path(".").rglob("*.py"):
+              try:
+                  ast.parse(f.read_text(encoding="utf-8"))
+              except SyntaxError as e:
+                  bad.append(f"{f}: {e}")
+          if bad:
+              print("\n".join(bad)); sys.exit(1)
+          print("SYNTAX_OK")
+          EOF
+      - name: Guard self-test (from templates, in a throwaway dir)
+        shell: bash
+        run: |
+          mkdir -p /tmp/hov-test && cd /tmp/hov-test
+          python -c "import shutil; shutil.copytree('$GITHUB_WORKSPACE/skills/zero-context-handover/templates', '.', dirs_exist_ok=True)"
+          python check_handover.py --selftest
