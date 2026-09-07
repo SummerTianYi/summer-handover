@@ -41,7 +41,7 @@ description: Install and operate a zero-context handover system for any reposito
 
 ### 装（bootstrap）
 
-对目标仓库跑 `scripts/bootstrap.py`（或手抄模板）：
+对目标仓库跑本技能自带的 `scripts/bootstrap.py`（或手抄 templates/）：
 1. 生成 `AGENTS.md` / `HANDOFF.md` / `CONTRIBUTIONS.md` / `CARDS/` / `check_handover.py`（参数化配置在 `.handover.json`）；
 2. 引导填写：项目北极星、领地表（每个 owner 一行）、接口契约（数据进出路径与 schema）、环境契约（语言版本锁、一键安装脚本、数据集校验清单）；
 3. CI：给出三平台矩阵 job 片段（`templates/ci-snippet.yml`），粘贴进 `.github/workflows/`；
