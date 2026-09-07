@@ -15,7 +15,11 @@ from __future__ import annotations
 import argparse
 import json
 import shutil
+import sys
 from pathlib import Path
+if hasattr(sys.stdout, "reconfigure"):  # Chinese output on cp1252 consoles
+    sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+    sys.stderr.reconfigure(encoding="utf-8", errors="replace")
 
 # resolve relative to THIS file, so it works both from the skill install
 # and from a repo checkout (walkthrough-found bug: layouts disagreed)
