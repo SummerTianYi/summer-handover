@@ -11,13 +11,13 @@ Usage:  python install.py            (auto-detect + install)
 from __future__ import annotations
 
 import argparse
+import shutil
+import sys
+from pathlib import Path
 
 if hasattr(sys.stdout, "reconfigure"):  # Chinese output on cp1252 consoles
     sys.stdout.reconfigure(encoding="utf-8", errors="replace")
     sys.stderr.reconfigure(encoding="utf-8", errors="replace")
-import shutil
-import sys
-from pathlib import Path
 
 SRC = Path(__file__).resolve().parents[1] / "skills" / "zero-context-handover"
 HOME = Path.home()
