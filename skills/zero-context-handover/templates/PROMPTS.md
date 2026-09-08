@@ -19,17 +19,29 @@
 完成后向我汇报：装配了哪些文件、守卫是否绿、CI 是否通过。
 ```
 
-## B. 队友专用：首次 clone 后发给自己的 agent（每人一次）
+## B. 队友专用：完整一条话术（含克隆与认证，整段发给队友的 agent）
 
 ```text
-你是本仓库的新任 agent，此前你没有任何本项目的上下文。按顺序执行：
-1. 读 AGENTS.md（宪法：接口契约+协作规则）→ HANDOFF.md（领地表+冻结区）→ CARDS/<你的名字>.md。
-2. 运行 setup.sh（mac/linux）或 setup.ps1（windows），然后运行 python check_handover.py，
-   必须输出 HANDOVER_GUARD_OK。
-3. 向我汇报三问：我的 workstream 是什么、哪些产出是冻结的、我的下一步是什么。
-   任何一问答不出来，直接告诉我交接卡哪里没写清楚，不要猜。
-4. 记住三条铁律：领地外只读；冻结区（HANDOFF §2 + FROZEN.lock）不许重构；
-   每次提交前跑 python check_handover.py 并更新 CARDS/<你的名字>.md，commit 末尾加你的 agent 名。
+你是 [你的名字] 的 agent（数学建模比赛队成员，三人代号：alice=建模、brin=求解、cary=论文）。
+我们的比赛仓库是 https://github.com/SummerTianYi/cumcm-2026（私有仓，交接系统已内置）。
+请依次完成以下初始化，然后向我汇报：
+
+1. 环境自检：确认 git 与 Python 3.10+ 可用；git 未配置身份则设置
+   user.name="[你的名字]"、user.email=[你的邮箱]。
+2. 克隆：git clone https://github.com/SummerTianYi/cumcm-2026 并进入目录。
+   若要求认证：安装 GitHub CLI 后运行 gh auth login 按设备码流程完成授权。
+3. 读仓库三件套：AGENTS.md（宪法：接口契约+协作规则）→ HANDOFF.md（领地表+冻结区）
+   → CARDS/[你的代号].md（你的交接卡；若没有以你命名的卡，把与你角色最接近的
+   占位卡 git mv 改成你的名字，同步更新 HANDOFF 领地表，然后提交）。
+4. 初始化环境：运行 setup.sh（mac/linux）或 setup.ps1（windows），
+   然后运行 python check_handover.py，必须输出 HANDOVER_GUARD_OK。
+5. 向我汇报三问：①我的 workstream 和下一步 ②仓库里哪些产出是冻结的、不许动
+   ③我的东西怎么运行和验证。
+6. 三条铁律：领地外只读；冻结区（HANDOFF §2 + FROZEN.lock）不许重构；
+   每次提交前 python check_handover.py 必须绿、更新 CARDS/[你的代号].md、
+   commit 末尾加 (你的agent名)。
+
+异常处理：任何一步卡住或报错，原样把错误信息报给我，不要猜、不要自行重构别人的产出。
 ```
 
 ## C. 每日开工（可反复使用，每次新会话都贴一次）
